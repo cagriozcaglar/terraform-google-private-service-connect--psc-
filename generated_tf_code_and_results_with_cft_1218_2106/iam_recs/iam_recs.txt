@@ -1,0 +1,7 @@
+Invoking GenerateIacRoleRecommendation with plan /tmp/tf-iam-rec-3872986583/tfplan.json...
+Response:
+{
+  "[cloud_iam.policy_ai.iampolicyai.IacRolesAdditionalInfo.additional_info]": {}
+}
+Duration: 1 sec.
+

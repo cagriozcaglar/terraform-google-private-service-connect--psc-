@@ -1,0 +1,162 @@
+#
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: TerraformBlueprint
+metadata:
+  name: terraform-google-private-service-connect
+  source:
+    type: git
+    git:
+      repo: https://github.com/GoogleCloudPlatform/terraform-google-private-service-connect
+      dir: /
+      ref: main
+  version: 1.0.0 # Placeholder version
+  actuationTool:
+    type: Terraform
+    version: ">= 1.3"
+  info:
+    title: "Google Cloud Private Service Connect (PSC)"
+    description:
+      tagline: Provisions producer and consumer Private Service Connect resources.
+      detailed: |
+        This module is designed to provision Private Service Connect (PSC) resources in Google Cloud. It supports both producer-side configurations (publishing a service via a Service Attachment) and consumer-side configurations (accessing a service via a Forwarding Rule endpoint). The module ensures that you can create one type of configuration at a time by setting either `create_producer_service_attachment` or `create_consumer_endpoint` to true.
+    labels:
+      gcp: ""
+      networking: ""
+      psc: ""
+spec:
+  requirements:
+    roles:
+      - level: project
+        role: roles/compute.networkAdmin
+    services:
+      - compute.googleapis.com
+  interfaces:
+    variables:
+      - name: project_id
+        description: "The project ID where the PSC resource will be created."
+        varType: string
+        required: true
+      - name: region
+        description: "The region where the PSC resource will be created."
+        varType: string
+        required: true
+      - name: name
+        description: "The name for the PSC resource (Service Attachment or Forwarding Rule)."
+        varType: string
+        required: true
+      - name: create_producer_service_attachment
+        description: "Set to true to create a producer-side Service Attachment. Mutually exclusive with `create_consumer_endpoint`."
+        varType: bool
+        defaultValue: false
+      - name: create_consumer_endpoint
+        description: "Set to true to create a consumer-side Forwarding Rule endpoint. Mutually exclusive with `create_producer_service_attachment`."
+        varType: bool
+        defaultValue: false
+      - name: producer_network
+        description: "The self-link of the VPC network for the producer's service attachment. Required if `create_producer_service_attachment` is true."
+        varType: string
+        defaultValue: null
+      - name: target_service
+        description: "The self-link of the forwarding rule of the Internal Load Balancer to be exposed. Required if `create_producer_service_attachment` is true."
+        varType: string
+        defaultValue: null
+      - name: connection_preference
+        description: "The connection preference for the service attachment. Can be `ACCEPT_AUTOMATIC` or `ACCEPT_MANUAL`."
+        varType: string
+        defaultValue: "ACCEPT_AUTOMATIC"
+      - name: enable_proxy_protocol
+        description: "If true, the PROXY protocol header will be sent to the backends. Only supported for TCP/SSL backends."
+        varType: bool
+        defaultValue: false
+      - name: consumer_accept_list
+        description: "A list of projects that are allowed to connect to the service attachment when `connection_preference` is `ACCEPT_MANUAL`."
+        varType: list(object({ project_id_or_num = string, connection_limit = number }))
+        defaultValue: []
+      - name: create_nat_subnet
+        description: "If true, the module will create a new NAT subnet for the service attachment. If false, you must provide existing subnets via `nat_subnets_self_links`."
+        varType: bool
+        defaultValue: true
+      - name: nat_subnet_name
+        description: "The name of the NAT subnet to be created. Used only if `create_nat_subnet` is true."
+        varType: string
+        defaultValue: null
+      - name: nat_subnet_cidr_range
+        description: "The IP CIDR range for the NAT subnet to be created. Used only if `create_nat_subnet` is true."
+        varType: string
+        defaultValue: null
+      - name: nat_subnets_self_links
+        description: "A list of self-links of existing NAT subnets to use for the service attachment. Used only if `create_nat_subnet` is false."
+        varType: list(string)
+        defaultValue: []
+      - name: consumer_network
+        description: "The self-link of the VPC network where the consumer endpoint will be created. Required if `create_consumer_endpoint` is true."
+        varType: string
+        defaultValue: null
+      - name: consumer_subnetwork
+        description: "The self-link of the subnetwork where the consumer endpoint will be created. Required if `create_consumer_endpoint` is true."
+        varType: string
+        defaultValue: null
+      - name: service_attachment_uri
+        description: "The URI of the producer's service attachment to connect to. Required if `create_consumer_endpoint` is true."
+        varType: string
+        defaultValue: null
+      - name: ip_address
+        description: "The static internal IP address to assign to the consumer endpoint. If null, an ephemeral IP will be assigned. Used only if `create_consumer_endpoint` is true."
+        varType: string
+        defaultValue: null
+    variableGroups:
+      - name: "General Settings"
+        description: "Basic configuration for the PSC resources."
+        variables:
+          - project_id
+          - region
+          - name
+      - name: "Deployment Mode"
+        description: "Choose whether to deploy a producer or consumer resource."
+        variables:
+          - create_producer_service_attachment
+          - create_consumer_endpoint
+      - name: "Producer Configuration"
+        description: "Settings for creating a producer Service Attachment."
+        variables:
+          - producer_network
+          - target_service
+          - connection_preference
+          - enable_proxy_protocol
+          - consumer_accept_list
+          - create_nat_subnet
+          - nat_subnet_name
+          - nat_subnet_cidr_range
+          - nat_subnets_self_links
+      - name: "Consumer Configuration"
+        description: "Settings for creating a consumer Forwarding Rule endpoint."
+        variables:
+          - consumer_network
+          - consumer_subnetwork
+          - service_attachment_uri
+          - ip_address
+    outputs:
+      - name: service_attachment
+        description: "The created `google_compute_service_attachment` resource."
+      - name: nat_subnet
+        description: "The created `google_compute_subnetwork` resource for PSC NAT."
+      - name: consumer_endpoint
+        description: "The created `google_compute_forwarding_rule` resource for the consumer endpoint."
+      - name: consumer_static_ip_address
+        description: "The created `google_compute_address` resource for the consumer endpoint's static IP."
+      - name: consumer_ip_address_value
+        description: "The IP address of the created consumer endpoint."
