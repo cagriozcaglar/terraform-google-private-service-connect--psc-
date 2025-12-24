@@ -1,0 +1,157 @@
+# Generated from Terraform module code
+# Standard: TF Blueprint Metadata v1alpha1
+# Source: https://docs.google.com/document/d/1uMhNixV5RsH3s21pniLZpQDkSLS2cABh2lo1fkq2hMY/edit
+
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: TerraformBlueprint
+metadata:
+  name: terraform-google-private-service-connect
+  source:
+    type: git
+    # Replace with the actual URL of the module's repository
+    git:
+      repo: https://github.com/GoogleCloudPlatform/terraform-google-private-service-connect
+      dir: /
+  version: 1.0.0
+spec:
+  info:
+    title: Private Service Connect Module
+    actuationTool:
+      type: Terraform
+      versions:
+      - ">= 1.3"
+    description:
+      tagline: Create Private Service Connect (PSC) producers and consumers.
+      detailed: This module simplifies the creation of Google Cloud Private Service Connect resources. It can operate in two modes: 'producer' to create a Service Attachment for publishing a service, or 'consumer' to create a Forwarding Rule (endpoint) to consume a published service.
+    examples:
+      - name: producer_example
+        location: examples/producer
+        title: Producer Service Attachment
+      - name: consumer_example
+        location: examples/consumer
+        title: Consumer Endpoint
+    icon: # path to an icon file, e.g., icon.svg
+    diagrams: [] # list of paths to diagram files
+    documentations: [] # list of {title, url}
+  customization:
+    variables:
+      - name: name
+        description: The base name for the Private Service Connect resources.
+        type: string
+        required: true
+      - name: project_id
+        description: The project ID where the PSC resources will be created.
+        type: string
+        required: true
+      - name: region
+        description: The GCP region for the PSC resources.
+        type: string
+        required: true
+      - name: network
+        description: The self-link of the VPC network where the PSC resources will be created.
+        type: string
+        required: true
+      - name: psc_type
+        description: The type of PSC component to create, either 'producer' (Service Attachment) or 'consumer' (Endpoint).
+        type: string
+        required: true
+      - name: description
+        description: An optional description to apply to the created resources.
+        type: string
+        required: false
+        default: null
+      - name: producer_target_service
+        description: The self-link of the Internal Load Balancer forwarding rule to be published. Required if psc_type is 'producer'.
+        type: string
+        required: false
+        default: null
+      - name: producer_connection_preference
+        description: The connection preference for the service attachment. Can be 'ACCEPT_AUTOMATIC' or 'ACCEPT_MANUAL'.
+        type: string
+        required: false
+        default: ACCEPT_AUTOMATIC
+      - name: producer_nat_subnets
+        description: A list of CIDR ranges for the PSC NAT subnets to be created. Required if psc_type is 'producer'.
+        type: list(string)
+        required: false
+        default: []
+      - name: producer_enable_proxy_protocol
+        description: If true, the PROXY protocol header is forwarded to the backend service.
+        type: bool
+        required: false
+        default: false
+      - name: producer_consumer_accept_lists
+        description: A list of consumer projects that are explicitly allowed to connect to the service attachment.
+        type: list(object({ project_id_or_num = string, connection_limit = number }))
+        required: false
+        default: []
+      - name: consumer_target_service
+        description: The URI of the target service attachment or a Google API bundle (e.g., 'all-apis', 'vpc-sc'). Required if psc_type is 'consumer'.
+        type: string
+        required: false
+        default: null
+      - name: consumer_subnetwork
+        description: The self-link of the subnetwork for the consumer endpoint. Required if psc_type is 'consumer'.
+        type: string
+        required: false
+        default: null
+      - name: consumer_ip_address
+        description: The IP address for the consumer endpoint. If `consumer_create_address` is true, this is the specific IP to reserve. If false, this must be the self-link of a pre-existing `google_compute_address` resource.
+        type: string
+        required: false
+        default: null
+      - name: consumer_create_address
+        description: If true, a new static internal IP address will be created for the consumer endpoint.
+        type: bool
+        required: false
+        default: true
+      - name: consumer_allow_psc_global_access
+        description: Allow the PSC endpoint to be accessed from any region. If null, this is automatically set to true for Google API targets ('all-apis', 'vpc-sc').
+        type: bool
+        required: false
+        default: null
+    variableGroups:
+      - name: General Settings
+        description: Basic configuration for all PSC resources.
+        variables:
+          - name
+          - project_id
+          - region
+          - network
+          - psc_type
+          - description
+      - name: Producer Settings
+        description: Configuration for creating a PSC Service Attachment (producer).
+        variables:
+          - producer_target_service
+          - producer_connection_preference
+          - producer_nat_subnets
+          - producer_enable_proxy_protocol
+          - producer_consumer_accept_lists
+      - name: Consumer Settings
+        description: Configuration for creating a PSC Endpoint (consumer).
+        variables:
+          - consumer_target_service
+          - consumer_subnetwork
+          - consumer_ip_address
+          - consumer_create_address
+          - consumer_allow_psc_global_access
+    outputs:
+      - name: service_attachment
+        description: The created `google_compute_service_attachment` resource. This is only available when `psc_type` is 'producer'.
+      - name: service_attachment_uri
+        description: The URI of the created service attachment. Consumers will use this to connect. This is only available when `psc_type` is 'producer'.
+      - name: nat_subnets
+        description: A map of the created `google_compute_subnetwork` resources for PSC NAT. Keys are the CIDR ranges. This is only available when `psc_type` is 'producer'.
+      - name: consumer_forwarding_rule
+        description: The created `google_compute_forwarding_rule` resource that acts as the PSC endpoint. This is only available when `psc_type` is 'consumer'.
+      - name: consumer_endpoint_ip_address
+        description: The internal IP address of the consumer PSC endpoint. This is only available when `psc_type` is 'consumer'.
+      - name: consumer_address
+        description: The created `google_compute_address` resource for the consumer endpoint. This is only available when `psc_type` is 'consumer' and `consumer_create_address` is true.
+  requirements:
+    roles:
+      - level: project
+        role: roles/compute.networkAdmin
+    services:
+      - compute.googleapis.com
