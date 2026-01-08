@@ -1,0 +1,166 @@
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: TerraformBlueprint
+metadata:
+  name: terraform-google-private-service-connect
+  source:
+    type: git
+    location: https://github.com/GoogleCloudPlatform/terraform-google-private-service-connect.git
+  version: 1.0.0
+  actuationTool:
+    type: Terraform
+    versions:
+      - ">= 1.3"
+  title: Private Service Connect (PSC) Module
+  descriptions:
+    tagline: Creates Private Service Connect (PSC) resources for producer, consumer, and Google APIs modes.
+    detailed: This module handles the creation of Google Cloud Private Service Connect (PSC) resources. It can operate in three distinct modes by setting one of the key input variables; Producer Mode (target_service), Consumer Service Mode (target_service_attachment), or Consumer Google APIs Mode (google_apis_bundle).
+  icon: https://cloud.google.com/images/products/icons/private-service-connect.svg
+  diagrams: []
+  documentations: []
+  examples:
+    - name: producer_service_attachment
+      location: examples/producer_service_attachment
+      title: Producer Service Attachment Example
+      description: Deploys a PSC service attachment to publish an internal load balancer.
+    - name: consumer_endpoint
+      location: examples/consumer_endpoint
+      title: Consumer Endpoint Example
+      description: Deploys a PSC endpoint to connect to a published service.
+    - name: google_apis_endpoint
+      location: examples/google_apis_endpoint
+      title: Google APIs Endpoint Example
+      description: Deploys a PSC endpoint for private access to Google APIs.
+spec:
+  customization:
+    variables:
+      - name: name
+        description: The base name for the PSC resources being created.
+        type: string
+        required: true
+      - name: project_id
+        description: The project ID where the PSC resources will be created.
+        type: string
+        required: true
+      - name: network
+        description: The self-link of the VPC network where the PSC resources will be created.
+        type: string
+        required: true
+      - name: description
+        description: An optional description to apply to the created PSC resources.
+        type: string
+        required: false
+        default: "Private Service Connect resource managed by Terraform"
+      - name: target_service
+        description: "PRODUCER MODE: The self-link of the Internal Load Balancer's forwarding rule to be published. Setting this variable activates producer mode."
+        type: string
+        required: false
+        default: null
+      - name: psc_nat_subnets
+        description: "PRODUCER MODE: A list of CIDR ranges for the PSC NAT subnets to be created. These subnets are used for the service attachment."
+        type: array
+        required: false
+        default: []
+      - name: region
+        description: The region for the PSC resources. Required for 'Producer' and 'Consumer Service' modes.
+        type: string
+        required: false
+        default: null
+      - name: connection_preference
+        description: "PRODUCER MODE: The connection preference for the service attachment. Can be ACCEPT_AUTOMATIC or ACCEPT_MANUAL."
+        type: string
+        required: false
+        default: "ACCEPT_MANUAL"
+      - name: enable_proxy_protocol
+        description: "PRODUCER MODE: If true, the PROXY protocol header will be sent to the backend service."
+        type: boolean
+        required: false
+        default: false
+      - name: reconcile_connections
+        description: "PRODUCER MODE: If true, connections from consumers in the same project are automatically accepted."
+        type: boolean
+        required: false
+        default: true
+      - name: consumer_accept_list
+        description: "PRODUCER MODE: A list of projects that are allowed to connect to this service attachment."
+        type: array
+        required: false
+        default: []
+      - name: target_service_attachment
+        description: "CONSUMER SERVICE MODE: The URI of the producer's Service Attachment to connect to. Setting this variable activates consumer service mode."
+        type: string
+        required: false
+        default: null
+      - name: subnetwork
+        description: "CONSUMER SERVICE MODE: The self-link of the subnetwork where the PSC endpoint's IP will be allocated."
+        type: string
+        required: false
+        default: null
+      - name: ip_address
+        description: "CONSUMER SERVICE MODE: A reserved static internal IP address to use for the PSC endpoint. If not provided, a new one will be created."
+        type: string
+        required: false
+        default: null
+      - name: google_apis_bundle
+        description: "CONSUMER GOOGLE APIS MODE: The target Google APIs bundle to connect to (e.g., 'all-apis' or 'vpc-sc'). Setting this variable activates consumer Google APIs mode."
+        type: string
+        required: false
+        default: null
+      - name: global_address_ip
+        description: "CONSUMER GOOGLE APIS MODE: The specific IP address to reserve for the global PSC endpoint. This must be a valid IP address."
+        type: string
+        required: false
+        default: null
+    variableGroups:
+      - name: "Core Settings"
+        description: "Basic configuration for all PSC modes."
+        variables:
+          - name
+          - project_id
+          - network
+          - description
+      - name: "Mode Selection"
+        description: "Set exactly one of these variables to select the module's operating mode."
+        variables:
+          - target_service
+          - target_service_attachment
+          - google_apis_bundle
+      - name: "Producer Mode Configuration"
+        description: "Settings for publishing a service via a Service Attachment. Requires 'target_service' to be set."
+        expanded: true
+        variables:
+          - region
+          - psc_nat_subnets
+          - connection_preference
+          - enable_proxy_protocol
+          - reconcile_connections
+          - consumer_accept_list
+      - name: "Consumer Service Mode Configuration"
+        description: "Settings for connecting to a published service. Requires 'target_service_attachment' to be set."
+        expanded: true
+        variables:
+          - region
+          - subnetwork
+          - ip_address
+      - name: "Consumer Google APIs Mode Configuration"
+        description: "Settings for connecting to Google APIs. Requires 'google_apis_bundle' to be set."
+        expanded: true
+        variables:
+          - global_address_ip
+    outputs:
+      - name: service_attachment
+        description: "The created service attachment resource. Only available in producer mode."
+      - name: consumer_forwarding_rule
+        description: "The created consumer forwarding rule resource. Only available in consumer modes."
+      - name: consumer_ip_address
+        description: "The IP address of the created consumer endpoint. Only available in consumer modes."
+      - name: nat_subnets
+        description: "A map of the created PSC NAT subnets, keyed by their self-link. Only available in producer mode."
+      - name: psc_connection_id
+        description: "The connection ID of the PSC forwarding rule. Only available in consumer service mode."
+  requirements:
+    roles:
+      - level: project
+        roles:
+          - roles/compute.networkAdmin
+    services:
+      - compute.googleapis.com
