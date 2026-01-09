@@ -1,0 +1,211 @@
+# KRM YAML for a Terraform blueprint's metadata.
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: BlueprintMetadata
+metadata:
+  name: terraform-google-private-service-connect
+  annotations:
+    config.kubernetes.io/local-config: "true"
+spec:
+  info:
+    # Required. Machine-readable name.
+    name: terraform-google-private-service-connect
+    # Required. Source code details.
+    source:
+      # Required. Type of source.
+      sourceType: git
+      # Required. Location of the source.
+      git:
+        repo: https://github.com/GoogleCloudPlatform/terraform-google-private-service-connect.git
+        # Optional. Directory within the repo.
+        dir: /
+    # Required. The current release version of the blueprint.
+    version: 1.0.0
+    # Required. The tool used to actuate the blueprint.
+    actuationTool:
+      # Required. Type of actuation tool.
+      type: Terraform
+      # Required. Version constraints for the tool.
+      version: ">= 1.0"
+    # Required. Human-readable name.
+    title: Google Cloud Private Service Connect (PSC)
+    # Required. Descriptions of the blueprint.
+    descriptions:
+      # Required. Short description.
+      tagline: A Terraform module for creating PSC producers and consumers.
+      # Required. Detailed description.
+      detailed: This module simplifies the creation and management of Google Cloud Private Service Connect. It supports both producer-side configurations (creating service attachments to publish a service) and consumer-side configurations (creating endpoints to connect to a published service or Google APIs).
+    # Optional. Nested blueprints.
+    subBlueprints: []
+    # Optional. List of examples for using the blueprint.
+    examples:
+      - name: producer_service_attachment_example
+        location: examples/producer
+      - name: consumer_endpoint_example
+        location: examples/consumer
+    # Optional. Labels for organizing the blueprint.
+    labels:
+      - key: gcp
+      - key: networking
+      - key: psc
+    # Optional. Icon for the blueprint.
+    icon: https://cloud.google.com/private-service-connect/images/private-service-connect-icon.svg
+  customization:
+    # Optional. Input variables for the blueprint.
+    variables:
+      - name: psc_type
+        description: "The type of PSC setup to create. Must be one of 'PRODUCER' or 'CONSUMER'."
+        type: STRING
+        required: true
+      - name: name
+        description: "The base name for the PSC resources."
+        type: STRING
+        required: true
+      - name: project_id
+        description: "The project ID where the PSC resources will be created."
+        type: STRING
+        required: true
+      - name: region
+        description: "The region where the PSC resources will be created."
+        type: STRING
+        required: true
+      - name: network
+        description: "The VPC network for the PSC resources. The network must be in the same project and region as the PSC resources."
+        type: STRING
+        required: true
+      - name: description
+        description: "An optional description for the PSC resources."
+        type: STRING
+        default: null
+        required: false
+      - name: create_nat_subnet
+        description: "(Producer-only) Whether to create a dedicated NAT subnet for the service attachment. If false, existing subnets must be provided via `nat_subnets`."
+        type: BOOL
+        default: true
+        required: false
+      - name: nat_subnet_ip_cidr_range
+        description: "(Producer-only) The IP CIDR range for the NAT subnet to be created. Required if `create_nat_subnet` is true."
+        type: STRING
+        default: null
+        required: false
+      - name: nat_subnets
+        description: "(Producer-only) A list of self-links of existing NAT subnets to use for the service attachment. These are used in addition to the one created by the module if `create_nat_subnet` is true."
+        type: LIST_STRING
+        default: []
+        required: false
+      - name: target_service
+        description: "(Producer-only) The self-link of the forwarding rule of the internal load balancer to publish."
+        type: STRING
+        default: null
+        required: false
+      - name: connection_preference
+        description: "(Producer-only) The connection preference for the service attachment. Can be 'ACCEPT_AUTOMATIC' or 'ACCEPT_MANUAL'."
+        type: STRING
+        default: "ACCEPT_AUTOMATIC"
+        required: false
+      - name: enable_proxy_protocol
+        description: "(Producer-only) If true, indicates that connections to the service attachment will be proxied and the source IP address of the consumer instance will be preserved."
+        type: BOOL
+        default: true
+        required: false
+      - name: consumer_accept_lists
+        description: "(Producer-only) A list of projects that are allowed to connect to the service attachment."
+        type: LIST_OBJECT
+        default: []
+        required: false
+      - name: consumer_reject_lists
+        description: "(Producer-only) A list of projects that are not allowed to connect to the service attachment."
+        type: LIST_STRING
+        default: []
+        required: false
+      - name: subnetwork
+        description: "(Consumer-only) The self-link of the subnetwork where the PSC endpoint will be created."
+        type: STRING
+        default: null
+        required: false
+      - name: target_service_attachment
+        description: "(Consumer-only) The self-link of the service attachment to connect to, or a Google-managed service bundle like 'all-apis' or 'vpc-sc'."
+        type: STRING
+        default: null
+        required: false
+      - name: ip_address
+        description: "(Consumer-only) The self-link or IP address of a static internal IP address to use for the PSC endpoint. If not provided, a new one will be created."
+        type: STRING
+        default: null
+        required: false
+      - name: allow_psc_global_access
+        description: "(Consumer-only) If true, the PSC endpoint can be accessed from any region. This is useful for endpoints connecting to Google APIs."
+        type: BOOL
+        default: false
+        required: false
+    # Optional. Groups of related variables.
+    variableGroups:
+      - name: "General Settings"
+        description: "Core settings required for any PSC configuration."
+        variables:
+          - psc_type
+          - name
+          - project_id
+          - region
+          - network
+          - description
+      - name: "Producer (Service Attachment) Settings"
+        description: "Settings for creating a PSC service attachment to publish a service. These are only used when psc_type is 'PRODUCER'."
+        variables:
+          - create_nat_subnet
+          - nat_subnet_ip_cidr_range
+          - nat_subnets
+          - target_service
+          - connection_preference
+          - enable_proxy_protocol
+          - consumer_accept_lists
+          - consumer_reject_lists
+      - name: "Consumer (Endpoint) Settings"
+        description: "Settings for creating a PSC endpoint to connect to a service. These are only used when psc_type is 'CONSUMER'."
+        variables:
+          - subnetwork
+          - target_service_attachment
+          - ip_address
+          - allow_psc_global_access
+    # Optional. Outputs of the blueprint.
+    outputs:
+      - name: service_attachment
+        description: "The created PSC service attachment resource. Only available when psc_type is 'PRODUCER'."
+      - name: service_attachment_uri
+        description: "The URI of the created service attachment, which is used by consumers. Only available when psc_type is 'PRODUCER'."
+      - name: nat_subnet
+        description: "The PSC NAT subnet created by this module. Only available when psc_type is 'PRODUCER' and create_nat_subnet is true."
+      - name: forwarding_rule
+        description: "The created PSC endpoint forwarding rule resource. Only available when psc_type is 'CONSUMER'."
+      - name: endpoint_ip_address
+        description: "The IP address of the PSC endpoint. Only available when psc_type is 'CONSUMER'."
+      - name: ip_address_resource
+        description: "The created static IP address resource for the PSC endpoint. Only available when psc_type is 'CONSUMER' and a value for 'ip_address' is not provided."
+  requirements:
+    # Optional. GCP IAM roles required for the blueprint.
+    roles:
+      - level: Project
+        role: roles/compute.networkAdmin
+    # Optional. Specific GCP IAM permissions required for the blueprint.
+    permissions:
+      - compute.addresses.create
+      - compute.forwardingRules.create
+      - compute.networks.use
+      - compute.serviceAttachments.create
+      - compute.subnetworks.create
+      - compute.subnetworks.use
+    # Optional. GCP APIs that need to be enabled.
+    services:
+      - compute.googleapis.com
